@@ -13,6 +13,186 @@
 namespace solution {
 // -----  Ide dolgozz!  -----
 
+class Task {
+    std::string id_;
+    unsigned maximum_, points_;
+
+  public:
+    Task(const std::string &id, unsigned maximum, unsigned points = 0)
+        : id_(id), maximum_(maximum), points_(points) {
+        if (id.empty() || maximum == 0 || maximum > 100 || points > maximum)
+            throw std::invalid_argument("Invalid task");
+    }
+    const std::string &getId() const { return id_; }
+    unsigned getMax() const { return maximum_; }
+    unsigned getPoints() const { return points_; }
+    unsigned percentage() const { return points_ * 100 / maximum_; }
+    Task &operator++() {
+        if (points_ < maximum_)
+            ++points_;
+        return *this;
+    }
+    Task operator++(int) {
+        Task copy(*this);
+        ++*this;
+        return copy;
+    }
+    Task &operator--() {
+        if (points_ > 0)
+            --points_;
+        return *this;
+    }
+    Task operator--(int) {
+        Task copy(*this);
+        --*this;
+        return copy;
+    }
+    Task &operator+=(unsigned amount) {
+        if (amount > maximum_ - points_)
+            points_ = maximum_;
+        else
+            points_ += amount;
+        return *this;
+    }
+    Task &operator-=(unsigned amount) {
+        if (amount > points_)
+            points_ = 0;
+        else
+            points_ -= amount;
+        return *this;
+    }
+    Task operator+(unsigned amount) const {
+        Task copy(*this);
+        copy += amount;
+        return copy;
+    }
+    bool operator==(const Task &other) const { return id_ == other.id_; }
+    bool operator!=(const Task &other) const { return !(*this == other); }
+    bool operator<(const Task &other) const {
+        if (percentage() != other.percentage())
+            return percentage() > other.percentage();
+        return id_ < other.id_;
+    }
+    explicit operator std::string() const {
+        return "Task[" + id_ + "; " + std::to_string(points_) + "/" + std::to_string(maximum_) +
+               "]";
+    }
+};
+std::ostream &operator<<(std::ostream &out, const Task &task) {
+    return out << static_cast<std::string>(task);
+}
+
+class TaskBuilder {
+    std::string prefix_;
+    unsigned count_ = 0;
+
+  public:
+    explicit TaskBuilder(const std::string &prefix) : prefix_(prefix) {}
+    Task newTask(unsigned maximum = 10) {
+        Task result(prefix_ + "-" + std::to_string(count_ + 1), maximum);
+        ++count_;
+        return result;
+    }
+    unsigned getCount() const { return count_; }
+};
+
+class Workshop {
+    std::string name_;
+    std::map<std::string, Task> tasks_;
+
+  public:
+    explicit Workshop(const std::string &name = "Gyakorlas") : name_(name) {}
+    bool add(const std::string &topic, const Task &task) {
+        if (tasks_.find(topic) != tasks_.end())
+            return false;
+        for (const auto &entry : tasks_)
+            if (entry.second.getId() == task.getId())
+                return false;
+        tasks_.insert(std::make_pair(topic, task));
+        return true;
+    }
+    unsigned count() const { return static_cast<unsigned>(tasks_.size()); }
+    explicit operator unsigned() const { return count(); }
+    Task &operator[](const std::string &topic) {
+        auto it = tasks_.find(topic);
+        if (it == tasks_.end())
+            throw std::out_of_range("No topic");
+        return it->second;
+    }
+    const Task &operator[](const std::string &topic) const {
+        auto it = tasks_.find(topic);
+        if (it == tasks_.end())
+            throw std::out_of_range("No topic");
+        return it->second;
+    }
+    std::string locateById(const std::string &id) const {
+        for (const auto &entry : tasks_)
+            if (entry.second.getId() == id)
+                return entry.first;
+        return "[UNKNOWN]";
+    }
+    bool operator-(const std::string &topic) { return tasks_.erase(topic) != 0; }
+    unsigned erasePrefix(const std::string &prefix) {
+        unsigned removed = 0;
+        for (auto it = tasks_.begin(); it != tasks_.end();) {
+            if (it->second.getId().find(prefix) == 0) {
+                it = tasks_.erase(it);
+                ++removed;
+            } else
+                ++it;
+        }
+        return removed;
+    }
+    const Task &operator~() const {
+        if (tasks_.empty())
+            throw std::out_of_range("No task");
+        auto best = tasks_.begin();
+        for (auto it = tasks_.begin(); it != tasks_.end(); ++it)
+            if (it->second < best->second)
+                best = it;
+        return best->second;
+    }
+    unsigned operator!() const {
+        if (tasks_.empty())
+            throw std::out_of_range("No task");
+        unsigned sum = 0;
+        for (const auto &entry : tasks_)
+            sum += entry.second.percentage();
+        return sum / count();
+    }
+    std::vector<Task> operator>=(unsigned minimum) const {
+        std::vector<Task> result;
+        for (const auto &entry : tasks_)
+            if (entry.second.percentage() >= minimum)
+                result.push_back(entry.second);
+        for (std::size_t i = 0; i < result.size(); ++i) {
+            for (std::size_t j = i + 1; j < result.size(); ++j) {
+                if (result[j] < result[i]) {
+                    Task temp(result[i]);
+                    result[i] = result[j];
+                    result[j] = temp;
+                }
+            }
+        }
+        return result;
+    }
+    Workshop operator()(const std::string &prefix, unsigned minimum) const {
+        Workshop result(name_);
+        for (const auto &entry : tasks_)
+            if (entry.second.getId().find(prefix) == 0 && entry.second.percentage() >= minimum)
+                result.add(entry.first, entry.second);
+        return result;
+    }
+    void write(std::ostream &out) const {
+        out << "Workshop: " << name_ << '\n';
+        for (const auto &entry : tasks_)
+            out << entry.first << ": " << entry.second << '\n';
+    }
+};
+std::ostream &operator<<(std::ostream &out, const Workshop &workshop) {
+    workshop.write(out);
+    return out;
+}
 
 // -----  Ez alatt mar ne legyen implementacio!  -----
 } // namespace solution

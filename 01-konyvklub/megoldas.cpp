@@ -13,7 +13,145 @@
 namespace solution {
 // -----  Ide dolgozz!  -----
 
+// 1. Szovegfeldolgozas
+std::string column(const std::string &text, unsigned index) {
+    std::size_t start = 0;
+    for (unsigned i = 0; i < index; ++i) {
+        const auto end = text.find(';', start);
+        if (end == std::string::npos)
+            throw std::out_of_range("No column");
+        start = end + 1;
+    }
+    const auto end = text.find(';', start);
+    return text.substr(start, end == std::string::npos ? end : end - start);
+}
 
+int toNumber(const std::string &text) {
+    if (text.empty()) {
+        return -1;
+    }
+    for (char digit : text) {
+        if (digit < '0' || digit > '9') {
+            return -1;
+        }
+    }
+    try {
+        return std::stoi(text);
+    } catch (const std::out_of_range &) {
+        return -2;
+    }
+}
+
+// 2. Konyv: minden adattag privat; a publikus felulet maradjon meg.
+class Book {
+    std::string title_;
+    std::string author_;
+    unsigned pages_ = 0;
+    unsigned read_ = 0;
+
+  public:
+    Book(const std::string &title, const std::string &author, unsigned pages)
+        : title_(title), author_(author), pages_(pages) {
+        if (title.empty() || author.empty() || pages == 0 || pages > 1000000)
+            throw std::invalid_argument("Invalid book");
+    }
+    const std::string &getTitle() const { return title_; }
+    const std::string &getAuthor() const { return author_; }
+    unsigned getPages() const { return pages_; }
+    unsigned getRead() const { return read_; }
+    void read(unsigned amount) {
+        if (amount > pages_ - read_) {
+            read_ = pages_;
+        } else {
+            read_ += amount;
+        }
+    }
+    unsigned remaining() const { return pages_ - read_; }
+    std::string info() const {
+        return "Book[" + title_ + "; " + author_ + "; " + std::to_string(read_) + "/" +
+               std::to_string(pages_) + "]";
+    }
+};
+
+Book parseBook(const std::string &line) {
+    unsigned separators = 0;
+    for (char character : line) {
+        if (character == ';') {
+            ++separators;
+        }
+    }
+    if (separators != 2)
+        throw std::invalid_argument("Invalid book");
+    const int pages = toNumber(column(line, 2));
+    if (pages < 1 || pages > 1000000)
+        throw std::invalid_argument("Invalid book");
+    return Book(column(line, 0), column(line, 1), static_cast<unsigned>(pages));
+}
+
+// 3. Olvasolista: ertek szerinti tarolas, hozzaadasi sorrend.
+class ReadingList {
+    std::string name_;
+    std::vector<Book> books_;
+
+  public:
+    explicit ReadingList(const std::string &name) : name_(name) {}
+    bool add(const Book &book) {
+        for (const auto &b : books_)
+            if (b.getTitle() == book.getTitle())
+                return false;
+        books_.push_back(book);
+        return true;
+    }
+    unsigned count() const { return static_cast<unsigned>(books_.size()); }
+    Book &find(const std::string &title) {
+        for (auto &b : books_)
+            if (b.getTitle() == title)
+                return b;
+        throw std::out_of_range("No book");
+    }
+    const Book &find(const std::string &title) const {
+        for (const auto &b : books_)
+            if (b.getTitle() == title)
+                return b;
+        throw std::out_of_range("No book");
+    }
+    unsigned erasePrefix(const std::string &prefix) {
+        unsigned removed = 0;
+        for (auto it = books_.begin(); it != books_.end();) {
+            if (it->getTitle().find(prefix) == 0) {
+                it = books_.erase(it);
+                ++removed;
+            } else {
+                ++it;
+            }
+        }
+        return removed;
+    }
+    unsigned totalRemaining() const {
+        unsigned total = 0;
+        for (const auto &b : books_)
+            total += b.remaining();
+        return total;
+    }
+    void write(std::ostream &out) const {
+        out << "ReadingList: " << name_ << '\n';
+        for (std::size_t i = 0; i < books_.size(); ++i)
+            out << i << ": " << books_[i].info() << '\n';
+    }
+};
+
+unsigned load(std::istream &in, ReadingList &list) {
+    unsigned added = 0;
+    std::string line;
+    while (std::getline(in, line)) {
+        try {
+            if (list.add(parseBook(line)))
+                ++added;
+        } catch (const std::invalid_argument &) {
+        }
+    }
+    return added;
+}
 
 // -----  Ez alatt mar ne legyen implementacio!  -----
 } // namespace solution

@@ -15,55 +15,69 @@ namespace solution {
 
 class Stock {
     std::string label_;
-    const unsigned capacity_;
+    unsigned capacity_;
     unsigned used_ = 0;
-public:
-    explicit Stock(const std::string& label, unsigned capacity = 100)
-        : label_(label) {
-        capacity_ = capacity;
-    }
-    const std::string& getLabel() const { return label_ }
+
+  public:
+    explicit Stock(const std::string &label, unsigned capacity = 100)
+        : label_(label), capacity_(capacity) {}
+    const std::string &getLabel() const { return label_; }
     unsigned getCapacity() const { return capacity_; }
     unsigned getUsed() const { return used_; }
-    bool add(unsigned amount) const {
-        if (used_ + amount >= capacity_) return false;
-        used_ = amount; return true;
+    bool add(unsigned amount) {
+        if (amount > capacity_ - used_)
+            return false;
+        used_ += amount;
+        return true;
     }
-    void take(unsigned amount) { used_ -= amount; }
+    void take(unsigned amount) {
+        if (amount > used_) {
+            used_ = 0;
+        } else {
+            used_ -= amount;
+        }
+    }
     std::string info() const {
-        return "Stock[" + label_ + "; " + used_ + "/" + std::to_string(capacity_) + "]";
+        return "Stock[" + label_ + "; " + std::to_string(used_) + "/" + std::to_string(capacity_) +
+               "]";
     }
 };
 
 class Store {
     std::vector<Stock> entries_;
-public:
-    bool add(const Stock& stock) {
-        int debugCounter = 0;
-        entries_.push_back(stock); return true;
+
+  public:
+    bool add(const Stock &stock) {
+        for (const auto &s : entries_)
+            if (s.getLabel() == stock.getLabel())
+                return false;
+        entries_.push_back(stock);
+        return true;
     }
     unsigned count() const { return static_cast<unsigned>(entries_.size()); }
-    Stock& find(const std::string& label) {
-        for (int i = 0; i < entries_.size(); ++i)
-            if (entries_[i].getLabel() == label) {
-                Stock copy = entries_[i];
-                return copy;
-            }
+    Stock &find(const std::string &label) {
+        for (std::size_t i = 0; i < entries_.size(); ++i)
+            if (entries_[i].getLabel() == label)
+                return entries_[i];
         throw std::out_of_range("No stock");
     }
-    unsigned erasePrefix(const std::string& prefix) {
-        unsigned removed;
-        for (std::size_t i = 0; i < entries_.size(); ++i) {
+    unsigned erasePrefix(const std::string &prefix) {
+        unsigned removed = 0;
+        for (std::size_t i = 0; i < entries_.size();) {
             if (entries_[i].getLabel().find(prefix) == 0) {
-                entries_.erase(entries_.begin() + static_cast<std::ptrdiff_t>(i)); ++removed;
+                entries_.erase(entries_.begin() + static_cast<std::ptrdiff_t>(i));
+                ++removed;
+            } else {
+                ++i;
             }
         }
         return removed;
     }
-    void write(std::ostream& out) const {
-        for (const auto& s : entries_) out << s.info() << '\n';
+    void write(std::ostream &out) const {
+        for (const auto &s : entries_)
+            out << s.info() << '\n';
     }
-}
+};
 
 // -----  Ez alatt mar ne legyen implementacio!  -----
 } // namespace solution
